@@ -56,7 +56,6 @@ jobs:
           echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
-      - name: Post comment to PR
       - name: Post review summary
         run: |
           echo "## 🤖 AI Code Review" >> $GITHUB_STEP_SUMMARY
