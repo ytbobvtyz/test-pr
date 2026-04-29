@@ -8,17 +8,56 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
       - name: Get PR diff
+        id: diff
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER.diff" > pr.diff
+          echo "diff_size=$(wc -c < pr.diff)" >> $GITHUB_OUTPUT
       
-      - name: Send to server
+      - name: Get changed files
+        id: files
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...origin/${{ github.head_ref }} > changed_files.txt
+          echo "files=$(cat changed_files.txt | jq -R -s -c 'split("\n") | map(select(length>0))')" >> $GITHUB_OUTPUT
+      
+      - name: Send to AI Review Service
+        id: ai_review
         env:
           REVIEW_SERVICE_URL: ${{ secrets.REVIEW_SERVICE_URL }}
         run: |
-          DIFF=$(cat pr.diff | jq -Rs .)
-          curl -X POST "$REVIEW_SERVICE_URL/api/review" \
+          DIFF_CONTENT=$(cat pr.diff | jq -Rs .)
+          FILES_JSON=$(cat changed_files.txt | jq -R -s -c 'split("\n") | map(select(length>0))')
+          
+          RESPONSE=$(curl -s -X POST "$REVIEW_SERVICE_URL/api/review" \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": $DIFF, \"files\": [], \"pr_title\": \"${{ github.event.pull_request.title }}\"}"
+            -d "{
+              \"diff\": $DIFF_CONTENT,
+              \"files\": $FILES_JSON,
+              \"pr_title\": \"${{ github.event.pull_request.title }}\"
+            }")
+          
+          echo "review=$(echo "$RESPONSE" | jq -r '.review')" >> $GITHUB_OUTPUT
+      
+      - name: Post comment to PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const review = `${{ steps.ai_review.outputs.review }}`;
+            
+            if (review && review !== "null" && review !== "") {
+              const comment = `## 🤖 AI Code Review\n\n${review}\n\n---\n*Автоматическое ревью от AI ассистента*`;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
