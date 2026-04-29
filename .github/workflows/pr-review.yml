@@ -57,16 +57,9 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Post comment to PR
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          result-encoding: string
-          script: |
-            const review = `${{ steps.ai_review.outputs.review }}`;
-      
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## 🤖 AI Code Review\n\n${review}\n\n---\n*Автоматическое ревью*`
-            });
+      - name: Post review summary
+        run: |
+          echo "## 🤖 AI Code Review" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.ai_review.outputs.review }}" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Автоматическое ревью*" >> $GITHUB_STEP_SUMMARY
