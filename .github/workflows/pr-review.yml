@@ -1,0 +1,24 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR diff
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER.diff" > pr.diff
+      
+      - name: Send to server
+        env:
+          REVIEW_SERVICE_URL: ${{ secrets.REVIEW_SERVICE_URL }}
+        run: |
+          DIFF=$(cat pr.diff | jq -Rs .)
+          curl -X POST "$REVIEW_SERVICE_URL/api/review" \
+            -H "Content-Type: application/json" \
+            -d "{\"diff\": $DIFF, \"files\": [], \"pr_title\": \"${{ github.event.pull_request.title }}\"}"
