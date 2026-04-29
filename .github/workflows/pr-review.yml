@@ -45,7 +45,11 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
           
-          echo "review=$(echo "$RESPONSE" | jq -r '.review')" >> $GITHUB_OUTPUT
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.review // "Ошибка: ревью не получено"')
+    
+          echo "review<<EOF" >> $GITHUB_OUTPUT
+          echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Post comment to PR
         uses: actions/github-script@v7
