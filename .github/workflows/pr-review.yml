@@ -55,14 +55,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
           script: |
-            const review = `${{ steps.ai_review.outputs.review }}`.replace(/`/g, '\\`');
-            
-            if (review && review !== "null" && review !== "") {
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `## 🤖 AI Code Review\n\n${review}\n\n---\n*Автоматическое ревью от AI ассистента*`
-              });
-            }
+            const review = `${{ steps.ai_review.outputs.review }}`;
+      
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🤖 AI Code Review\n\n${review}\n\n---\n*Автоматическое ревью*`
+            });
